@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np 
-import tensorflow as tf
+import tensorflow as tf # type: ignore
 
 from sklearn.preprocessing import StandardScaler, LabelEncoder, OneHotEncoder
 import pandas as pd
@@ -9,60 +9,71 @@ import pickle
 ## Load the trained model
 model = tf.keras.models.load_model('model.h5')
 
-with open('label_encoder_gender.pkl','rb') as file:
-    label_encoder_gender = pickle.load(file)
+with open('label_encoder_sex.pkl','rb') as file:
+    label_encoder_sex = pickle.load(file)
 
-with open('onehot_encoder_geo.pkl','rb') as file:
-    onehot_encoder_geo = pickle.load(file)
+with open('onehot_encoder_des.pkl','rb') as file:
+    onehot_encoder_des = pickle.load(file)
+
+with open('onehot_encoder_unit.pkl','rb') as file:
+    onehot_encoder_unit = pickle.load(file)
 
 with open('scaler.pkl','rb') as file:
     scaler = pickle.load(file)
 
 # Streamlit
 
-st.title("Fintech Customer Salary Prediction")
+st.title("Salary Prediction")
 
 # User Inputs
 
-geography = st.selectbox("Geography", onehot_encoder_geo.categories_[0])
+designation = st.selectbox("Designation", onehot_encoder_des.categories_[0])
 
-gender  = st.selectbox("Gender", label_encoder_gender.classes_)
+unit = st.selectbox("Unit", onehot_encoder_unit.categories_[0])
+
+sex  = st.selectbox("Sex", label_encoder_sex.classes_)
 
 age = st.slider("Age", 18, 92)
-
-balance = st.number_input('Balance')
-
-credit_score =  st.number_input('CreditScore')
+rating = st.slider("Rating", 0, 5)
 
 
-tenure = st.slider('Tenure',0,10)
 
-num_of_products = st.slider('NumOfProducts',1,4)
+past_exp = st.slider('Past Experience',0,25)
 
-has_cr_card = st.selectbox('Has Credit Card',[0,1])
-
-is_active_member = st.selectbox('Is Active Member',[0,1])
-
-# Prepare the input data
 
 input_data = pd.DataFrame({
-    'CreditScore': [credit_score],
-    'Gender' : [label_encoder_gender.transform([gender])[0]],
-    'Age' : [age],
-    'Tenure' : [tenure],
-    'Balance' : [balance],
-    'NumOfProducts' : [num_of_products],
-    'HasCrCard': [has_cr_card],
-    'IsActiveMember' : [is_active_member]
+    'DESIGNATION': [designation],
+    'UNIT': [unit],
+    'SEX' : [label_encoder_sex.transform([sex])[0]],
+    'AGE' : [age],
+    'PAST EXP' : [past_exp],
+    'RATINGS' : [rating],
 
 })
 
-geo_encoded = onehot_encoder_geo.transform([[geography]]).toarray()
+dev_encoded = onehot_encoder_des.transform([[designation]]).toarray()
 
-geo_encoded_df = pd.DataFrame(geo_encoded, columns=onehot_encoder_geo.get_feature_names_out(['Geography']))
+dev_encoded_df = pd.DataFrame(dev_encoded, columns=onehot_encoder_des.get_feature_names_out(['DESIGNATION']))
 
-# Combine one-hot encoded columns with input data
-input_data = pd.concat([input_data.reset_index(drop=True),geo_encoded_df],axis=1)
+unit_encoded = onehot_encoder_unit.transform([[unit]]).toarray()
+
+unit_encoded_df = pd.DataFrame(unit_encoded, columns=onehot_encoder_unit.get_feature_names_out(['UNIT']))
+
+
+
+
+
+# Remove DESIGNATION and UNIT from the original DataFrame
+input_data.drop(['DESIGNATION', 'UNIT'], axis=1, inplace=True)
+
+# Now combine everything
+input_data = pd.concat([input_data.reset_index(drop=True), dev_encoded_df, unit_encoded_df], axis=1)
+
+
+with open('feature_order.pkl', 'rb') as f:
+    feature_order = pickle.load(f)
+
+input_data = input_data[feature_order]
 
 #Scale the input data
 input_data_scaled =  scaler.transform(input_data)
@@ -70,13 +81,9 @@ input_data_scaled =  scaler.transform(input_data)
 prediction = model.predict(input_data_scaled)
 
 
+
+
 if st.button('Predict Salary'):
     prediction = model.predict(input_data_scaled, verbose=0)
     predicted_salary = prediction[0][0]
     st.success(f"Predicted Estimated Salary: ${predicted_salary:,.2f}")
-
-
-
-
-
-
