@@ -31,7 +31,7 @@ designation = st.selectbox("Designation", onehot_encoder_des.categories_[0])
 
 unit = st.selectbox("Unit", onehot_encoder_unit.categories_[0])
 
-sex  = st.selectbox("Sex", label_encoder_sex.classes_)
+sex  = st.selectbox("Gender", label_encoder_sex.classes_)
 
 age = st.slider("Age", 18, 92)
 rating = st.slider("Rating", 0, 5)
